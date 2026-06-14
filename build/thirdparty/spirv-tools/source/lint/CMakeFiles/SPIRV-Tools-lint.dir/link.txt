@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libSPIRV-Tools-lint.a "CMakeFiles/SPIRV-Tools-lint.dir/linter.cpp.o" "CMakeFiles/SPIRV-Tools-lint.dir/divergence_analysis.cpp.o" "CMakeFiles/SPIRV-Tools-lint.dir/lint_divergent_derivatives.cpp.o"
+/usr/bin/llvm-ranlib /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libSPIRV-Tools-lint.a

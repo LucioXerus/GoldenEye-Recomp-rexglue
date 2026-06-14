@@ -10,6 +10,7 @@
  */
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 
 #include <rex/assert.h>
@@ -26,6 +27,53 @@
 #include <X11/Xlib-xcb.h>
 #include <gdk/gdkx.h>
 #include <xcb/xcb.h>
+
+#if REX_HAS_WAYLAND
+#include <gdk/gdkwayland.h>
+#include "pointer-constraints-unstable-v1-client-protocol.h"
+#include "relative-pointer-unstable-v1-client-protocol.h"
+#endif
+
+#if REX_HAS_WAYLAND
+namespace {
+
+struct WaylandRegistryData {
+  struct wl_compositor* compositor = nullptr;
+  struct wl_subcompositor* subcompositor = nullptr;
+  struct zwp_pointer_constraints_v1* pointer_constraints = nullptr;
+  struct zwp_relative_pointer_manager_v1* relative_pointer_manager = nullptr;
+};
+
+void WaylandRegistryGlobalHandler(void* data, struct wl_registry* registry, uint32_t name,
+                                  const char* interface, uint32_t version) {
+  auto* reg_data = static_cast<WaylandRegistryData*>(data);
+  if (std::strcmp(interface, "wl_compositor") == 0) {
+    reg_data->compositor = static_cast<struct wl_compositor*>(
+        wl_registry_bind(registry, name, &wl_compositor_interface, std::min(version, uint32_t(4))));
+  } else if (std::strcmp(interface, "wl_subcompositor") == 0) {
+    reg_data->subcompositor = static_cast<struct wl_subcompositor*>(
+        wl_registry_bind(registry, name, &wl_subcompositor_interface, 1));
+  } else if (std::strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0) {
+    reg_data->pointer_constraints =
+        static_cast<struct zwp_pointer_constraints_v1*>(wl_registry_bind(
+            registry, name, &zwp_pointer_constraints_v1_interface, std::min(version, uint32_t(1))));
+  } else if (std::strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
+    reg_data->relative_pointer_manager = static_cast<struct zwp_relative_pointer_manager_v1*>(
+        wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface,
+                         std::min(version, uint32_t(1))));
+  }
+}
+
+void WaylandRegistryGlobalRemoveHandler(void* /*data*/, struct wl_registry* /*registry*/,
+                                        uint32_t /*name*/) {}
+
+const struct wl_registry_listener kWaylandRegistryListener = {
+    WaylandRegistryGlobalHandler,
+    WaylandRegistryGlobalRemoveHandler,
+};
+
+}  // namespace
+#endif  // REX_HAS_WAYLAND
 
 namespace {
 
@@ -317,10 +365,30 @@ GTKWindow::GTKWindow(WindowedAppContext& app_context, const std::string_view tit
 
 GTKWindow::~GTKWindow() {
   EnterDestructor();
+  if (pointer_grabbed_) {
+    GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+    GdkSeat* seat = gdk_display_get_default_seat(gdk_display);
+    if (seat) {
+      gdk_seat_ungrab(seat);
+    }
+    pointer_grabbed_ = false;
+  }
   if (blank_cursor_) {
     g_object_unref(blank_cursor_);
     blank_cursor_ = nullptr;
   }
+#if REX_HAS_WAYLAND
+  // Unlock and null the surface pointer before destroying the GTK widget and
+  // Wayland globals. WaylandWindowSurface (owned by the presenter) may outlive
+  // this destructor; its own destructor calls wl_subsurface_destroy /
+  // wl_surface_destroy which only touch the child proxies it owns — those are
+  // safe regardless. What must not happen is wl_compositor_ / wl_subcompositor_
+  // being freed while the surface still holds a reference path through them, so
+  // clear wayland_surface_ first to drop our back-pointer, then unlock, then
+  // destroy globals after the GTK widget is gone.
+  wayland_surface_ = nullptr;
+  UnlockWaylandPointer();
+#endif
   if (window_) {
     // Set window_ to null to ignore events from now on since this ui::GTKWindow
     // is entering an indeterminate state.
@@ -331,6 +399,24 @@ GTKWindow::~GTKWindow() {
     box_ = nullptr;
     gtk_widget_destroy(window);
   }
+#if REX_HAS_WAYLAND
+  if (wl_subcompositor_) {
+    wl_subcompositor_destroy(wl_subcompositor_);
+    wl_subcompositor_ = nullptr;
+  }
+  if (wl_compositor_) {
+    wl_compositor_destroy(wl_compositor_);
+    wl_compositor_ = nullptr;
+  }
+  if (wl_pointer_constraints_) {
+    zwp_pointer_constraints_v1_destroy(wl_pointer_constraints_);
+    wl_pointer_constraints_ = nullptr;
+  }
+  if (wl_relative_pointer_manager_) {
+    zwp_relative_pointer_manager_v1_destroy(wl_relative_pointer_manager_);
+    wl_relative_pointer_manager_ = nullptr;
+  }
+#endif
 }
 
 bool GTKWindow::OpenImpl() {
@@ -364,7 +450,13 @@ bool GTKWindow::OpenImpl() {
   // Attach the event handlers.
   // Keyboard events are processed by the window, mouse events are processed
   // within, and by, the drawing (client) area.
-  gtk_widget_set_events(window_, GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK);
+  // Include pointer masks on the toplevel window too: on GTK3+Wayland, child
+  // widgets have no native input surface so the compositor delivers all pointer
+  // events to the toplevel GdkWindow instead of drawing_area_'s.
+  gtk_widget_set_events(window_, GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK |
+                                     GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK |
+                                     GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+                                     GDK_SCROLL_MASK);
   gtk_widget_set_events(drawing_area_, GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK |
                                            GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
                                            GDK_SCROLL_MASK);
@@ -564,81 +656,230 @@ void GTKWindow::FocusImpl() {
   gtk_window_activate_focus(GTK_WINDOW(window_));
 }
 
-GdkWindow* GTKWindow::GetClientGdkWindow() const {
-  return drawing_area_ ? gtk_widget_get_window(drawing_area_) : nullptr;
-}
-
-GdkCursor* GTKWindow::EnsureBlankCursor() {
-  if (!blank_cursor_ && window_) {
-    GdkDisplay* display = gtk_widget_get_display(window_);
-    blank_cursor_ = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
-  }
-  return blank_cursor_;
-}
-
 void GTKWindow::ApplyNewMouseCapture() {
-  GdkWindow* gdk_window = GetClientGdkWindow();
+  if (!window_ || pointer_grabbed_) {
+    return;
+  }
+  GdkWindow* gdk_window = gtk_widget_get_window(window_);
   if (!gdk_window) {
     return;
   }
-  GdkDisplay* display = gtk_widget_get_display(window_);
-  GdkSeat* seat = gdk_display_get_default_seat(display);
-  // Hide the cursor while grabbed if the desired visibility is non-visible.
-  GdkCursor* cursor =
-      GetCursorVisibility() == CursorVisibility::kVisible ? nullptr : EnsureBlankCursor();
-  // owner_events = TRUE so the drawing area still receives motion events for
-  // delta tracking while the pointer is confined to the window.
-  if (gdk_seat_grab(seat, gdk_window, GDK_SEAT_CAPABILITY_ALL_POINTING, TRUE, cursor, nullptr,
-                    nullptr, nullptr) == GDK_GRAB_SUCCESS) {
+  GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+  GdkSeat* seat = gdk_display_get_default_seat(gdk_display);
+  if (!seat) {
+    return;
+  }
+  GdkGrabStatus status = gdk_seat_grab(seat, gdk_window, GDK_SEAT_CAPABILITY_POINTER, FALSE,
+                                       blank_cursor_,  // use blank cursor during grab if hidden
+                                       nullptr, nullptr, nullptr);
+  if (status == GDK_GRAB_SUCCESS) {
     pointer_grabbed_ = true;
   }
+
+#if REX_HAS_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY(gdk_display)) {
+    LockWaylandPointer();
+  }
+#endif
 }
 
 void GTKWindow::ApplyNewMouseRelease() {
-  if (!pointer_grabbed_ || !window_) {
+  if (!pointer_grabbed_) {
     return;
   }
-  GdkDisplay* display = gtk_widget_get_display(window_);
-  GdkSeat* seat = gdk_display_get_default_seat(display);
-  gdk_seat_ungrab(seat);
+#if REX_HAS_WAYLAND
+  {
+    GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+    if (GDK_IS_WAYLAND_DISPLAY(gdk_display)) {
+      UnlockWaylandPointer();
+    }
+  }
+#endif
+
+  GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+  GdkSeat* seat = gdk_display_get_default_seat(gdk_display);
+  if (seat) {
+    gdk_seat_ungrab(seat);
+  }
   pointer_grabbed_ = false;
+  ApplyNewCursorVisibility(GetCursorVisibility());
 }
 
-void GTKWindow::ApplyNewCursorVisibility(CursorVisibility /*old_cursor_visibility*/) {
-  GdkWindow* gdk_window = GetClientGdkWindow();
+void GTKWindow::ApplyNewCursorVisibility(CursorVisibility old_cursor_visibility) {
+  (void)old_cursor_visibility;
+  if (!window_) {
+    return;
+  }
+  GdkWindow* gdk_window = gtk_widget_get_window(window_);
   if (!gdk_window) {
     return;
   }
-  if (GetCursorVisibility() == CursorVisibility::kVisible) {
+  CursorVisibility visibility = GetCursorVisibility();
+  if (visibility == CursorVisibility::kVisible) {
     gdk_window_set_cursor(gdk_window, nullptr);
   } else {
-    gdk_window_set_cursor(gdk_window, EnsureBlankCursor());
+    if (!blank_cursor_) {
+      GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+      blank_cursor_ = gdk_cursor_new_for_display(gdk_display, GDK_BLANK_CURSOR);
+    }
+    gdk_window_set_cursor(gdk_window, blank_cursor_);
   }
 }
 
-void GTKWindow::ApplyWarpMouseToClient(int32_t client_x, int32_t client_y) {
-  GdkWindow* gdk_window = GetClientGdkWindow();
-  if (!gdk_window || !window_) {
+#if REX_HAS_WAYLAND
+void GTKWindow::EnsureWaylandGlobals(struct wl_display* display) {
+  if (wayland_globals_bound_) {
     return;
   }
-  GdkDisplay* display = gtk_widget_get_display(window_);
-  GdkScreen* screen = gdk_display_get_default_screen(display);
-  GdkSeat* seat = gdk_display_get_default_seat(display);
-  GdkDevice* pointer = gdk_seat_get_pointer(seat);
-  if (!pointer) {
+  wayland_globals_bound_ = true;
+  struct wl_registry* registry = wl_display_get_registry(display);
+  if (!registry) {
     return;
   }
-  // Mouse events are reported in coordinates relative to the drawing area's
-  // GdkWindow; convert the client point to root coordinates for the warp.
-  gint origin_x = 0;
-  gint origin_y = 0;
-  gdk_window_get_origin(gdk_window, &origin_x, &origin_y);
-  gdk_device_warp(pointer, screen, origin_x + client_x, origin_y + client_y);
+  WaylandRegistryData reg_data;
+  wl_registry_add_listener(registry, &kWaylandRegistryListener, &reg_data);
+  wl_display_roundtrip(display);
+  wl_compositor_ = reg_data.compositor;
+  wl_subcompositor_ = reg_data.subcompositor;
+  wl_pointer_constraints_ = reg_data.pointer_constraints;
+  wl_relative_pointer_manager_ = reg_data.relative_pointer_manager;
+  wl_registry_destroy(registry);
 }
 
+void GTKWindow::LockWaylandPointer() {
+  if (wl_locked_pointer_ || !wl_pointer_constraints_ || !wl_relative_pointer_manager_) {
+    return;
+  }
+  GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+  GdkSeat* seat = gdk_display_get_default_seat(gdk_display);
+  if (!seat) {
+    return;
+  }
+  GdkDevice* gdk_pointer = gdk_seat_get_pointer(seat);
+  if (!gdk_pointer) {
+    return;
+  }
+  struct wl_pointer* wl_ptr = gdk_wayland_device_get_wl_pointer(gdk_pointer);
+  if (!wl_ptr) {
+    return;
+  }
+  GdkWindow* toplevel_gdk = gtk_widget_get_window(window_);
+  struct wl_surface* wl_surf = gdk_wayland_window_get_wl_surface(toplevel_gdk);
+  if (!wl_surf) {
+    return;
+  }
+
+  wl_locked_pointer_ =
+      zwp_pointer_constraints_v1_lock_pointer(wl_pointer_constraints_, wl_surf, wl_ptr,
+                                              nullptr,  // no region
+                                              ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT);
+  if (!wl_locked_pointer_) {
+    return;
+  }
+
+  wl_relative_pointer_ =
+      zwp_relative_pointer_manager_v1_get_relative_pointer(wl_relative_pointer_manager_, wl_ptr);
+  if (!wl_relative_pointer_) {
+    zwp_locked_pointer_v1_destroy(wl_locked_pointer_);
+    wl_locked_pointer_ = nullptr;
+    return;
+  }
+
+  static const struct zwp_relative_pointer_v1_listener kRelPtrListener = {
+      OnRelativePointerMotion,
+  };
+  zwp_relative_pointer_v1_add_listener(wl_relative_pointer_, &kRelPtrListener, this);
+
+  GtkAllocation alloc;
+  gtk_widget_get_allocation(drawing_area_, &alloc);
+  wayland_synth_x_ = alloc.width * 0.5;
+  wayland_synth_y_ = alloc.height * 0.5;
+}
+
+void GTKWindow::UnlockWaylandPointer() {
+  if (wl_relative_pointer_) {
+    zwp_relative_pointer_v1_destroy(wl_relative_pointer_);
+    wl_relative_pointer_ = nullptr;
+  }
+  if (wl_locked_pointer_) {
+    zwp_locked_pointer_v1_destroy(wl_locked_pointer_);
+    wl_locked_pointer_ = nullptr;
+  }
+}
+
+void GTKWindow::OnRelativePointerMotion(void* data, struct zwp_relative_pointer_v1* /*rp*/,
+                                        uint32_t /*utime_hi*/, uint32_t /*utime_lo*/, wl_fixed_t dx,
+                                        wl_fixed_t dy, wl_fixed_t /*dx_unaccel*/,
+                                        wl_fixed_t /*dy_unaccel*/) {
+  auto* self = static_cast<GTKWindow*>(data);
+  self->wayland_synth_x_ += wl_fixed_to_double(dx);
+  self->wayland_synth_y_ += wl_fixed_to_double(dy);
+
+  MouseEvent e(self, MouseEvent::Button::kNone, static_cast<int32_t>(self->wayland_synth_x_),
+               static_cast<int32_t>(self->wayland_synth_y_), 0, 0);
+  WindowDestructionReceiver destruction_receiver(self);
+  self->OnMouseMove(e, destruction_receiver);
+}
+#endif  // REX_HAS_WAYLAND
 std::unique_ptr<Surface> GTKWindow::CreateSurfaceImpl(Surface::TypeFlags allowed_types) {
   GdkDisplay* display = gtk_widget_get_display(window_);
   GdkWindow* drawing_area_window = gtk_widget_get_window(drawing_area_);
+
+#if REX_HAS_WAYLAND
+  wayland_surface_ = nullptr;
+  if (allowed_types & Surface::kTypeFlag_WaylandSurface) {
+    if (GDK_IS_WAYLAND_DISPLAY(display)) {
+      // On Wayland, we cannot render Vulkan directly to the toplevel
+      // wl_surface that GTK manages — doing so causes protocol errors because
+      // GTK is already attaching buffers to it. Instead, create a dedicated
+      // child wl_surface via the compositor and attach it as a subsurface of
+      // the parent (the GTK window's surface). Vulkan renders to this child.
+      struct wl_display* wl_dpy = gdk_wayland_display_get_wl_display(display);
+      EnsureWaylandGlobals(wl_dpy);
+      GdkWindow* toplevel_gdk_window = gtk_widget_get_window(window_);
+      struct wl_surface* parent_surface = gdk_wayland_window_get_wl_surface(toplevel_gdk_window);
+      if (wl_compositor_ && wl_subcompositor_ && parent_surface) {
+        struct wl_surface* child_surface = wl_compositor_create_surface(wl_compositor_);
+        if (child_surface) {
+          struct wl_subsurface* subsurface =
+              wl_subcompositor_get_subsurface(wl_subcompositor_, child_surface, parent_surface);
+          if (subsurface) {
+            // Position at (0,0) relative to parent and use desync mode so
+            // Vulkan presents independently of GTK's frame callbacks.
+            wl_subsurface_set_position(subsurface, 0, 0);
+            wl_subsurface_set_desync(subsurface);
+
+            // Set an empty input region on the child surface so that all
+            // pointer/touch events pass through to the parent (GTK's surface).
+            // Without this, the subsurface would intercept all input.
+            struct wl_region* empty_region = wl_compositor_create_region(wl_compositor_);
+            if (empty_region) {
+              wl_surface_set_input_region(child_surface, empty_region);
+              wl_surface_commit(child_surface);
+              wl_region_destroy(empty_region);
+            } else {
+              REXLOG_ERROR(
+                  "GTKWindow: wl_compositor_create_region returned null; "
+                  "Vulkan subsurface will intercept pointer input");
+            }
+
+            GtkAllocation allocation;
+            gtk_widget_get_allocation(drawing_area_, &allocation);
+            int scale = gtk_widget_get_scale_factor(drawing_area_);
+            auto surface = std::make_unique<WaylandWindowSurface>(
+                wl_dpy, child_surface, subsurface, uint32_t(allocation.width * scale),
+                uint32_t(allocation.height * scale));
+            wayland_surface_ = surface.get();
+            return surface;
+          } else {
+            wl_surface_destroy(child_surface);
+          }
+        }
+      }
+    }
+  }
+#endif  // REX_HAS_WAYLAND
+
   bool type_known = false;
   bool type_supported_by_display = false;
   if (allowed_types & Surface::kTypeFlag_XcbWindow) {
@@ -650,11 +891,19 @@ std::unique_ptr<Surface> GTKWindow::CreateSurfaceImpl(Surface::TypeFlags allowed
           gdk_x11_window_get_xid(drawing_area_window));
     }
   }
-  // TODO(Triang3l): Wayland surface.
   if (type_known && !type_supported_by_display) {
-    REXLOG_ERROR(
-        "GTKWindow: The window system of the GTK window is not supported by "
-        "Xenia");
+#if REX_HAS_WAYLAND
+    if (GDK_IS_WAYLAND_DISPLAY(display)) {
+      REXLOG_ERROR(
+          "GTKWindow: Wayland session but no WaylandSurface type requested or "
+          "surface creation failed; XCB path unavailable on Wayland");
+    } else
+#endif
+    {
+      REXLOG_ERROR(
+          "GTKWindow: The window system of the GTK window is not supported by "
+          "Xenia");
+    }
   }
   return nullptr;
 }
@@ -674,8 +923,22 @@ void GTKWindow::HandleSizeUpdate(WindowDestructionReceiver& destruction_receiver
 
   GtkAllocation drawing_area_allocation;
   gtk_widget_get_allocation(drawing_area_, &drawing_area_allocation);
-  OnActualSizeUpdate(uint32_t(drawing_area_allocation.width),
-                     uint32_t(drawing_area_allocation.height), destruction_receiver);
+
+#if REX_HAS_WAYLAND
+  if (wayland_surface_) {
+    int scale = gtk_widget_get_scale_factor(drawing_area_);
+    uint32_t physical_width = uint32_t(drawing_area_allocation.width * scale);
+    uint32_t physical_height = uint32_t(drawing_area_allocation.height * scale);
+    wayland_surface_->SetSize(physical_width, physical_height);
+    // On Wayland, GTK allocations are in logical (CSS) pixels. Report physical
+    // pixels to match what Surface::GetSize() will return.
+    OnActualSizeUpdate(physical_width, physical_height, destruction_receiver);
+  } else
+#endif  // REX_HAS_WAYLAND
+  {
+    OnActualSizeUpdate(uint32_t(drawing_area_allocation.width),
+                       uint32_t(drawing_area_allocation.height), destruction_receiver);
+  }
   if (destruction_receiver.IsWindowDestroyedOrClosed()) {
     return;
   }
@@ -858,6 +1121,53 @@ gboolean GTKWindow::WindowEventHandler(GdkEvent* event) {
       if (destruction_receiver.IsWindowDestroyedOrClosed()) {
         break;
       }
+    } break;
+
+    // On GTK3+Wayland, child widgets have no native wl_surface so the
+    // compositor delivers pointer events to the toplevel GdkWindow only.
+    // On X11 without a grab, the same events are delivered to drawing_area_
+    // and handled by DrawingAreaEventHandler — skip here to avoid double-
+    // counting. When pointer_grabbed_ is true, gdk_seat_grab has redirected
+    // all pointer events to the grabbed (toplevel) window, so drawing_area_
+    // no longer receives them and we must forward here instead.
+    case GDK_MOTION_NOTIFY:
+    case GDK_BUTTON_PRESS:
+    case GDK_BUTTON_RELEASE:
+    case GDK_SCROLL: {
+#if REX_HAS_WAYLAND
+      if (!GDK_IS_WAYLAND_DISPLAY(gtk_widget_get_display(window_)) && !pointer_grabbed_) {
+        break;
+      }
+      gint dx = 0, dy = 0;
+      switch (event->type) {
+        case GDK_MOTION_NOTIFY: {
+          auto* ev = reinterpret_cast<GdkEventMotion*>(event);
+          gtk_widget_translate_coordinates(window_, drawing_area_, static_cast<gint>(ev->x),
+                                           static_cast<gint>(ev->y), &dx, &dy);
+          ev->x = dx;
+          ev->y = dy;
+        } break;
+        case GDK_BUTTON_PRESS:
+        case GDK_BUTTON_RELEASE: {
+          auto* ev = reinterpret_cast<GdkEventButton*>(event);
+          gtk_widget_translate_coordinates(window_, drawing_area_, static_cast<gint>(ev->x),
+                                           static_cast<gint>(ev->y), &dx, &dy);
+          ev->x = dx;
+          ev->y = dy;
+        } break;
+        case GDK_SCROLL: {
+          auto* ev = reinterpret_cast<GdkEventScroll*>(event);
+          gtk_widget_translate_coordinates(window_, drawing_area_, static_cast<gint>(ev->x),
+                                           static_cast<gint>(ev->y), &dx, &dy);
+          ev->x = dx;
+          ev->y = dy;
+        } break;
+        default:
+          break;
+      }
+      WindowDestructionReceiver destruction_receiver(this);
+      HandleMouse(event, destruction_receiver);
+#endif  // REX_HAS_WAYLAND
     } break;
 
     default:

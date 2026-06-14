@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libfmt.a CMakeFiles/fmt.dir/src/format.cc.o CMakeFiles/fmt.dir/src/os.cc.o
+/usr/bin/llvm-ranlib /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libfmt.a

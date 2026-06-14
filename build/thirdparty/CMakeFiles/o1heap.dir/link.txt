@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libo1heap.a CMakeFiles/o1heap.dir/o1heap/o1heap/o1heap.c.o
+/usr/bin/llvm-ranlib /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libo1heap.a

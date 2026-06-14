@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libsnappy.a "CMakeFiles/snappy.dir/snappy-c.cc.o" "CMakeFiles/snappy.dir/snappy-sinksource.cc.o" "CMakeFiles/snappy.dir/snappy-stubs-internal.cc.o" CMakeFiles/snappy.dir/snappy.cc.o
+/usr/bin/llvm-ranlib /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libsnappy.a

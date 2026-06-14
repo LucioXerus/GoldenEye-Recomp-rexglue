@@ -1,0 +1,115 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  )
+
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/crt/file.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/file.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/file.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/crt/heap.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/heap.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/heap.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/crt/memory.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/memory.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/memory.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/crt/string.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/string.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/string.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/crt/threading.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/threading.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/crt/threading.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/kernel_init.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/kernel_init.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/kernel_init.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/apps/xam_app.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xam_app.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xam_app.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/apps/xgi_app.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xgi_app.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xgi_app.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/apps/xlivebase_app.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xlivebase_app.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xlivebase_app.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/apps/xmp_app.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xmp_app.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/apps/xmp_app.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/ge_online.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/ge_online.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/ge_online.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_avatar.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_avatar.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_avatar.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_content.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_content_aggregate.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content_aggregate.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content_aggregate.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_content_device.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content_device.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_content_device.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_debug.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_debug.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_debug.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_enum.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_enum.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_enum.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_info.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_info.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_info.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_input.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_input.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_input.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_locale.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_locale.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_locale.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_misc.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_misc.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_misc.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_module.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_msg.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_msg.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_msg.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_net.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_net.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_net.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_notify.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_notify.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_notify.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_nui.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_nui.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_nui.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_party.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_party.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_party.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_task.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_task.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_task.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_ui.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_ui.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_ui.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_user.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_user.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_user.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_video.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_video.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_video.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xam/xam_voice.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_voice.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xam/xam_voice.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xbdm/xbdm_misc.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xbdm/xbdm_misc.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xbdm/xbdm_misc.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xbdm/xbdm_module.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xbdm/xbdm_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xbdm/xbdm_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_audio.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_audio.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_audio.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_audio_xma.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_audio_xma.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_audio_xma.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_crypt.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_crypt.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_crypt.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_debug.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_debug.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_debug.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_error.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_error.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_error.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_hal.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_hal.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_hal.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_hid.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_hid.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_hid.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_io.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_io.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_io.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_io_info.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_io_info.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_io_info.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_memory.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_memory.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_memory.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_misc.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_misc.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_misc.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_module.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_modules.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_modules.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_modules.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_ob.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_ob.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_ob.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_rtl.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_rtl.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_rtl.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_strings.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_strings.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_strings.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_threading.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_threading.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_threading.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_video.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_video.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_video.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/kernel/xboxkrnl/xboxkrnl_xconfig.cpp" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_xconfig.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/__/kernel/xboxkrnl/xboxkrnl_xconfig.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/elf_module.cpp" "src/system/CMakeFiles/rexruntime.dir/elf_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/elf_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/entry_table.cpp" "src/system/CMakeFiles/rexruntime.dir/entry_table.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/entry_table.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/export_resolver.cpp" "src/system/CMakeFiles/rexruntime.dir/export_resolver.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/export_resolver.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/function_dispatcher.cpp" "src/system/CMakeFiles/rexruntime.dir/function_dispatcher.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/function_dispatcher.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/guest_path.cpp" "src/system/CMakeFiles/rexruntime.dir/guest_path.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/guest_path.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/kernel_module.cpp" "src/system/CMakeFiles/rexruntime.dir/kernel_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/kernel_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/kernel_state.cpp" "src/system/CMakeFiles/rexruntime.dir/kernel_state.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/kernel_state.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/lzx.cpp" "src/system/CMakeFiles/rexruntime.dir/lzx.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/lzx.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/map_parser.cpp" "src/system/CMakeFiles/rexruntime.dir/map_parser.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/map_parser.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/mmio_handler.cpp" "src/system/CMakeFiles/rexruntime.dir/mmio_handler.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/mmio_handler.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/module.cpp" "src/system/CMakeFiles/rexruntime.dir/module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/ppc_types.cpp" "src/system/CMakeFiles/rexruntime.dir/ppc_types.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/ppc_types.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/runtime.cpp" "src/system/CMakeFiles/rexruntime.dir/runtime.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/runtime.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/shared_library.cpp" "src/system/CMakeFiles/rexruntime.dir/shared_library.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/shared_library.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/thread.cpp" "src/system/CMakeFiles/rexruntime.dir/thread.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/thread.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/thread_state.cpp" "src/system/CMakeFiles/rexruntime.dir/thread_state.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/thread_state.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/user_module.cpp" "src/system/CMakeFiles/rexruntime.dir/user_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/user_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/util/gameinfo_utils.cpp" "src/system/CMakeFiles/rexruntime.dir/util/gameinfo_utils.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/util/gameinfo_utils.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/util/native_list.cpp" "src/system/CMakeFiles/rexruntime.dir/util/native_list.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/util/native_list.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/util/object_table.cpp" "src/system/CMakeFiles/rexruntime.dir/util/object_table.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/util/object_table.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/util/xdbf_utils.cpp" "src/system/CMakeFiles/rexruntime.dir/util/xdbf_utils.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/util/xdbf_utils.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xam/app_manager.cpp" "src/system/CMakeFiles/rexruntime.dir/xam/app_manager.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xam/app_manager.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xam/content_manager.cpp" "src/system/CMakeFiles/rexruntime.dir/xam/content_manager.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xam/content_manager.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xam/user_profile.cpp" "src/system/CMakeFiles/rexruntime.dir/xam/user_profile.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xam/user_profile.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xenumerator.cpp" "src/system/CMakeFiles/rexruntime.dir/xenumerator.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xenumerator.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xevent.cpp" "src/system/CMakeFiles/rexruntime.dir/xevent.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xevent.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xex_module.cpp" "src/system/CMakeFiles/rexruntime.dir/xex_module.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xex_module.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xfile.cpp" "src/system/CMakeFiles/rexruntime.dir/xfile.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xfile.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xiocompletion.cpp" "src/system/CMakeFiles/rexruntime.dir/xiocompletion.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xiocompletion.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xmemory.cpp" "src/system/CMakeFiles/rexruntime.dir/xmemory.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xmemory.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xmodule.cpp" "src/system/CMakeFiles/rexruntime.dir/xmodule.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xmodule.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xmutant.cpp" "src/system/CMakeFiles/rexruntime.dir/xmutant.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xmutant.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xnotifylistener.cpp" "src/system/CMakeFiles/rexruntime.dir/xnotifylistener.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xnotifylistener.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xobject.cpp" "src/system/CMakeFiles/rexruntime.dir/xobject.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xobject.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xsemaphore.cpp" "src/system/CMakeFiles/rexruntime.dir/xsemaphore.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xsemaphore.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xsocket.cpp" "src/system/CMakeFiles/rexruntime.dir/xsocket.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xsocket.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xsymboliclink.cpp" "src/system/CMakeFiles/rexruntime.dir/xsymboliclink.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xsymboliclink.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xthread.cpp" "src/system/CMakeFiles/rexruntime.dir/xthread.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xthread.cpp.o.d"
+  "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/src/system/xtimer.cpp" "src/system/CMakeFiles/rexruntime.dir/xtimer.cpp.o" "gcc" "src/system/CMakeFiles/rexruntime.dir/xtimer.cpp.o.d"
+  "" "/home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/librexruntime.so" "gcc" "src/system/CMakeFiles/rexruntime.dir/link.d"
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

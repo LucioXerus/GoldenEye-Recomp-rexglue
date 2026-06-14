@@ -1,0 +1,1 @@
+/usr/lib64/ccache/clang++ -fPIC -O3 -DNDEBUG -shared -fuse-ld=lld -Xlinker --dependency-file=CMakeFiles/TracyClient.dir/link.d -Wl,-soname,libTracyClient.so -o /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libTracyClient.so CMakeFiles/TracyClient.dir/tracy/public/TracyClient.cpp.o  -Wl,-rpath,:::::::::::::::::::::::: -ldl

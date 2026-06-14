@@ -24,6 +24,7 @@ option(REXGLUE_ENABLE_PERF_COUNTERS        "Enable lightweight perf counter regi
 if(ANDROID)
     set(REXGLUE_ENABLE_TRACY OFF CACHE BOOL "" FORCE)
 endif()
+option(REXGLUE_ENABLE_WAYLAND              "Enable native Wayland window support" ON)
 # Propagate profiling defines globally (compiled out in Release)
 if(REXGLUE_ENABLE_TRACY)
     add_compile_definitions($<$<NOT:$<CONFIG:Release>>:REXGLUE_ENABLE_PROFILING>)

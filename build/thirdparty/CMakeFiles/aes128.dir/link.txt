@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libaes128.a CMakeFiles/aes128.dir/aes_128/aes.c.o
+/usr/bin/llvm-ranlib /home/christopher/GoldenEye-Recomp/GoldenEye-Recomp-rexglue/out/linux-amd64/libaes128.a

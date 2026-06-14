@@ -14,6 +14,7 @@
 #include "rex/system/function_dispatcher.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -94,6 +95,12 @@ class GraphicsSystem : public system::IGraphicsSystem {
   bool Save(::rex::stream::ByteStream* stream);
   bool Restore(::rex::stream::ByteStream* stream);
 
+  // Called from the guest output (command processor) thread after a guest output
+  // frame has been presented to the host. Used to phase-lock the guest vblank to
+  // display present-completion when FIFO is forced (tear-free 60). No-op for the
+  // pacing if the present-locked path is not active.
+  void NotifyGuestOutputPresented();
+
  protected:
   GraphicsSystem();
 
@@ -134,6 +141,12 @@ class GraphicsSystem : public system::IGraphicsSystem {
   std::unique_ptr<::rex::ui::Presenter> presenter_;
 
   std::atomic_flag host_gpu_loss_reported_;
+
+  // Signals a completed guest output present to the vblank worker, so it can
+  // phase-lock the guest vblank to the display's FIFO present cadence.
+  std::mutex guest_output_present_mutex_;
+  std::condition_variable guest_output_present_cv_;
+  uint64_t guest_output_present_count_ = 0;
 };
 
 }  // namespace rex::graphics

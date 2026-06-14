@@ -849,23 +849,32 @@ std::unique_ptr<Surface> GTKWindow::CreateSurfaceImpl(Surface::TypeFlags allowed
             wl_subsurface_set_position(subsurface, 0, 0);
             wl_subsurface_set_desync(subsurface);
 
+            GtkAllocation allocation;
+            gtk_widget_get_allocation(drawing_area_, &allocation);
+            int scale = gtk_widget_get_scale_factor(drawing_area_);
+
+            // The Vulkan swapchain is created at physical (buffer) resolution
+            // (allocation * scale), so the child surface's buffer scale must
+            // match. Without this the compositor treats the buffer as scale 1
+            // and rescales every frame on HiDPI / fractional-scaling outputs,
+            // adding blur and judder.
+            wl_surface_set_buffer_scale(child_surface, scale);
+
             // Set an empty input region on the child surface so that all
             // pointer/touch events pass through to the parent (GTK's surface).
             // Without this, the subsurface would intercept all input.
             struct wl_region* empty_region = wl_compositor_create_region(wl_compositor_);
             if (empty_region) {
               wl_surface_set_input_region(child_surface, empty_region);
-              wl_surface_commit(child_surface);
               wl_region_destroy(empty_region);
             } else {
               REXLOG_ERROR(
                   "GTKWindow: wl_compositor_create_region returned null; "
                   "Vulkan subsurface will intercept pointer input");
             }
+            // Latch the buffer scale and input region.
+            wl_surface_commit(child_surface);
 
-            GtkAllocation allocation;
-            gtk_widget_get_allocation(drawing_area_, &allocation);
-            int scale = gtk_widget_get_scale_factor(drawing_area_);
             auto surface = std::make_unique<WaylandWindowSurface>(
                 wl_dpy, child_surface, subsurface, uint32_t(allocation.width * scale),
                 uint32_t(allocation.height * scale));
@@ -930,6 +939,14 @@ void GTKWindow::HandleSizeUpdate(WindowDestructionReceiver& destruction_receiver
     uint32_t physical_width = uint32_t(drawing_area_allocation.width * scale);
     uint32_t physical_height = uint32_t(drawing_area_allocation.height * scale);
     wayland_surface_->SetSize(physical_width, physical_height);
+    // Keep the child surface's buffer scale in sync with the output scale (it
+    // can change when the window moves between monitors of different DPI). Only
+    // the pending state is staged here, without a standalone commit: the next
+    // Vulkan present latches it atomically with the recreated, correctly-sized
+    // swapchain buffer, avoiding a buffer-size/scale mismatch protocol error.
+    if (struct wl_surface* child_surface = wayland_surface_->surface()) {
+      wl_surface_set_buffer_scale(child_surface, scale);
+    }
     // On Wayland, GTK allocations are in logical (CSS) pixels. Report physical
     // pixels to match what Surface::GetSize() will return.
     OnActualSizeUpdate(physical_width, physical_height, destruction_receiver);

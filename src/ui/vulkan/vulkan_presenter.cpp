@@ -63,6 +63,19 @@ REXCVAR_DEFINE_BOOL(vulkan_prefer_present_mode_mailbox_first, REX_PLATFORM_ANDRO
                     "(fixed-refresh, no VRR benefit from tearing), false on desktop. IMMEDIATE "
                     "is only used as a last resort when this is true.");
 
+// Default OFF. On Mesa/RADV + Wayland, FIFO present cannot sustain 60: Mesa's
+// Wayland FIFO path serializes vkQueuePresentKHR with the GPU and effectively
+// waits a full vblank per present (worse at 4K), dropping the rate - a platform
+// limitation below the app, not fixable from here. Measured: FIFO < 60 while
+// immediate/mailbox hold 60, same present thread, GPU ~50%, frame-gen layer off.
+// Immediate/mailbox are the right choice on Wayland and, absent wp_tearing_control,
+// composite tear-free anyway. The full tear-free-FIFO machinery is still wired and
+// gated by this cvar (FIFO mode + host_present_vsync_from_guest_thread guest-thread
+// present + the GPU VSync worker's present-completion phase-lock) for platforms
+// where FIFO present is cheap, but it stays off by default.
+REXCVAR_DEFINE_BOOL(vulkan_wayland_force_fifo, false, "UI/Vulkan",
+                    "On Wayland, force FIFO (vsync) instead of immediate/mailbox present mode");
+
 namespace rex {
 namespace ui {
 namespace vulkan {
@@ -765,12 +778,14 @@ VulkanPresenter::ConnectOrReconnectPaintingToSurfaceFromUIThread(Surface& new_su
   // The retirement or destruction of the swapchain here will also cause
   // awaiting completion of the usage of the swapchain and the surface on the
   // GPU.
+  const bool prefer_vsync = new_surface.GetType() == Surface::kTypeIndex_WaylandSurface &&
+                            REXCVAR_GET(vulkan_wayland_force_fifo);
   if (paint_context_.vulkan_surface != VK_NULL_HANDLE) {
     VkSwapchainKHR old_swapchain = paint_context_.PrepareForSwapchainRetirement();
     bool surface_unusable;
     paint_context_.swapchain = PaintContext::CreateSwapchainForVulkanSurface(
         vulkan_device_, paint_context_.vulkan_surface, new_surface_width, new_surface_height,
-        old_swapchain, paint_context_.present_queue_family, new_swapchain_format,
+        old_swapchain, prefer_vsync, paint_context_.present_queue_family, new_swapchain_format,
         paint_context_.swapchain_extent, paint_context_.swapchain_is_fifo, surface_unusable);
     // Destroy the old swapchain that may be retired now.
     if (old_swapchain != VK_NULL_HANDLE) {
@@ -864,7 +879,7 @@ VulkanPresenter::ConnectOrReconnectPaintingToSurfaceFromUIThread(Surface& new_su
     bool surface_unusable;
     paint_context_.swapchain = PaintContext::CreateSwapchainForVulkanSurface(
         vulkan_device_, paint_context_.vulkan_surface, new_surface_width, new_surface_height,
-        VK_NULL_HANDLE, paint_context_.present_queue_family, new_swapchain_format,
+        VK_NULL_HANDLE, prefer_vsync, paint_context_.present_queue_family, new_swapchain_format,
         paint_context_.swapchain_extent, paint_context_.swapchain_is_fifo, surface_unusable);
     if (paint_context_.swapchain == VK_NULL_HANDLE) {
       // Failed to create the swapchain for the new Vulkan surface - destroy the
@@ -1100,8 +1115,9 @@ bool VulkanPresenter::RefreshGuestOutputImpl(
 
 VkSwapchainKHR VulkanPresenter::PaintContext::CreateSwapchainForVulkanSurface(
     const VulkanDevice* vulkan_device, VkSurfaceKHR surface, uint32_t width, uint32_t height,
-    VkSwapchainKHR old_swapchain, uint32_t& present_queue_family_out, VkFormat& image_format_out,
-    VkExtent2D& image_extent_out, bool& is_fifo_out, bool& ui_surface_unusable_out) {
+    VkSwapchainKHR old_swapchain, bool prefer_vsync, uint32_t& present_queue_family_out,
+    VkFormat& image_format_out, VkExtent2D& image_extent_out, bool& is_fifo_out,
+    bool& ui_surface_unusable_out) {
   ui_surface_unusable_out = false;
 
   const VulkanInstance::Functions& ifn = vulkan_device->vulkan_instance()->functions();
@@ -1372,19 +1388,23 @@ VkSwapchainKHR VulkanPresenter::PaintContext::CreateSwapchainForVulkanSurface(
     swapchain_create_info.compositeAlpha =
         VkCompositeAlphaFlagBitsKHR(uint32_t(1) << composite_alpha_shift);
   }
+<<<<<<< HEAD
   // Present mode priority. Desktop default (mailbox_first=false): IMMEDIATE first so
   // VRR displays can tear at will for minimum latency. Mobile default (mailbox_first=true,
   // e.g. Android arm64 handhelds with fixed-refresh panels): MAILBOX first — tear-free and
   // low-latency; IMMEDIATE is only tried as a last resort when explicitly allowed via cvar.
   // Note: If the priorities here are changed, update the cvar descriptions.
-  const bool mailbox_first = REXCVAR_GET(vulkan_prefer_present_mode_mailbox_first);
-  if (!mailbox_first && REXCVAR_GET(vulkan_allow_present_mode_immediate) &&
+  // On Wayland (prefer_vsync), the tearing / frame-dropping modes are skipped:
+  // Mesa's Wayland WSI makes vkQueuePresentKHR block on the GPU for immediate and
+  // mailbox, serializing the command processor and causing microstutter, while
+  // FIFO drives the presenter's implicit-vsync path for smooth pacing.
+  if (!prefer_vsync && REXCVAR_GET(vulkan_allow_present_mode_immediate) &&
       std::find(present_modes.cbegin(), present_modes.cend(), VK_PRESENT_MODE_IMMEDIATE_KHR) !=
           present_modes.cend()) {
     // Desktop: tearing for VRR support and minimum latency.
     // (On Windows borderless fullscreen GDI copying is used, so VRR may not activate there.)
     swapchain_create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-  } else if (REXCVAR_GET(vulkan_allow_present_mode_mailbox) &&
+  } else if (!prefer_vsync && REXCVAR_GET(vulkan_allow_present_mode_mailbox) &&
              std::find(present_modes.cbegin(), present_modes.cend(), VK_PRESENT_MODE_MAILBOX_KHR) !=
                  present_modes.cend()) {
     // Low latency, no tearing (mobile preferred, desktop second choice).

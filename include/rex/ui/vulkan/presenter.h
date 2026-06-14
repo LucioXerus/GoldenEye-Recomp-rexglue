@@ -349,9 +349,14 @@ class VulkanPresenter final : public Presenter {
     // call (though it may fail before the vkCreateSwapchainKHR that will
     // technically retire it, so it will be in an undefined state), and needs to
     // be destroyed externally no matter what the result is.
+    // When prefer_vsync is true (e.g. for Wayland surfaces), the tearing /
+    // frame-dropping present modes (immediate, mailbox) are skipped in favor of
+    // FIFO. On Wayland those modes serialize vkQueuePresentKHR with the GPU and
+    // produce microstutter, whereas FIFO engages the presenter's implicit-vsync
+    // path which paces a fixed-rate guest smoothly to the display refresh.
     static VkSwapchainKHR CreateSwapchainForVulkanSurface(
         const VulkanDevice* vulkan_device, VkSurfaceKHR surface, uint32_t width, uint32_t height,
-        VkSwapchainKHR old_swapchain, uint32_t& present_queue_family_out,
+        VkSwapchainKHR old_swapchain, bool prefer_vsync, uint32_t& present_queue_family_out,
         VkFormat& image_format_out, VkExtent2D& image_extent_out, bool& is_fifo_out,
         bool& ui_surface_unusable_out);
 

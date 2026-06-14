@@ -34,6 +34,16 @@
 REXCVAR_DEFINE_BOOL(host_present_from_non_ui_thread, true, "UI/Presenter",
                     "Allow presentation from non-UI thread");
 
+// Normally, when the swapchain provides implicit vsync (FIFO), presentation is
+// kept on the UI thread so the guest output thread never blocks on a host vsync
+// wait. On Wayland that backfires: the UI thread is paced by GTK's frame clock,
+// which stacks on top of FIFO and caps below the refresh rate. Presenting FIFO
+// directly from the guest output thread instead keeps it decoupled from GTK and
+// paces cleanly to the display (tear-free 60). Scoped to Wayland surfaces only.
+REXCVAR_DEFINE_BOOL(host_present_vsync_from_guest_thread, true, "UI/Presenter",
+                    "On Wayland, present FIFO directly from the guest output thread instead "
+                    "of the GTK-driven UI thread (tear-free without the frame-clock cap)");
+
 REXCVAR_DEFINE_BOOL(present_letterbox, true, "UI/Presenter",
                     "Enable letterboxing for non-native aspect ratios");
 
@@ -1349,9 +1359,20 @@ Presenter::PaintMode Presenter::GetDesiredPaintModeFromUIThread(bool is_paintabl
     return PaintMode::kUIThreadOnRequest;
   }
   if (surface_paint_connection_has_implicit_vsync_) {
-    // Don't be causing host vertical sync CPU waits in the thread generating
-    // the guest output.
-    return PaintMode::kUIThreadOnRequest;
+    // Normally, don't cause host vertical sync CPU waits in the thread
+    // generating the guest output - paint in the UI thread instead. The
+    // exception is Wayland: there the UI thread is driven by GTK's frame clock,
+    // which stacks on top of FIFO and caps the rate below the display refresh
+    // (measured). Presenting FIFO straight from the guest output thread keeps it
+    // decoupled from GTK and paces cleanly. Only do so when the guest output is
+    // all that needs drawing (UI drawers still require the UI thread, handled
+    // below).
+    bool present_vsync_from_guest_thread =
+        surface_ && surface_->GetType() == Surface::kTypeIndex_WaylandSurface &&
+        REXCVAR_GET(host_present_vsync_from_guest_thread);
+    if (!present_vsync_from_guest_thread) {
+      return PaintMode::kUIThreadOnRequest;
+    }
   }
   if (!ui_drawers_.empty()) {
     // The UI can be drawn only by the UI thread, and it needs to be drawn -

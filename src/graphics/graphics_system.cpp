@@ -29,6 +29,7 @@
 #include <rex/stream.h>
 #include <rex/system/kernel_state.h>
 #include <rex/system/xthread.h>
+#include <rex/ui/flags.h>
 #include <rex/ui/graphics_provider.h>
 #include <rex/ui/window.h>
 #include <rex/ui/windowed_app_context.h>
@@ -187,6 +188,39 @@ X_STATUS GraphicsSystem::SetupGuestGpu(runtime::FunctionDispatcher* function_dis
             // can only ever slow the vblank down, never speed it up.
             interval_ticks = std::max(interval_ticks, vsync_interval_ticks);
           }
+          // Tear-free FIFO mode (Wayland force-FIFO): the guest output thread
+          // presents with FIFO, blocking until the display vblank. If the guest
+          // frame clock free-runs on this software timer it drifts against the
+          // display and FIFO drops frames. Instead, phase-lock: fire the vblank,
+          // then wait for that frame's present to reach the display before the
+          // next one - so guest production stays in lockstep with the display and
+          // FIFO never misses a vblank. Still rate-limited to the native refresh
+          // so a higher-Hz display can't over-drive the guest, and bounded by a
+          // timeout so the guest keeps ticking when nothing is presented (loading
+          // screens, minimized window).
+          if (REXCVAR_GET(vsync) && REXCVAR_GET(vulkan_wayland_force_fifo)) {
+            if (current_time - last_frame_time < vsync_interval_ticks) {
+              uint64_t remaining_ticks = (last_frame_time + vsync_interval_ticks) - current_time;
+              uint64_t remaining_us = remaining_ticks * 1000000ULL / guest_tick_frequency;
+              rex::thread::Sleep(std::chrono::microseconds(
+                  std::max<uint64_t>(std::min<uint64_t>(remaining_us, 1000), 1)));
+              continue;
+            }
+            uint64_t seen;
+            {
+              std::lock_guard<std::mutex> present_lock(guest_output_present_mutex_);
+              seen = guest_output_present_count_;
+            }
+            MarkVblank();
+            last_frame_time = chrono::Clock::QueryGuestTickCount();
+            std::unique_lock<std::mutex> present_lock(guest_output_present_mutex_);
+            guest_output_present_cv_.wait_for(
+                present_lock, std::chrono::duration<double>(1.5 / refresh_rate_hz),
+                [this, seen]() {
+                  return !vsync_worker_running_ || guest_output_present_count_ != seen;
+                });
+            continue;
+          }
           // Fire at most one vblank per wake; drop the backlog if starved (avoids
           // burst-flooding the guest vblank ISR after an off-core stall).
           if (current_time - last_frame_time >= interval_ticks) {
@@ -195,8 +229,20 @@ X_STATUS GraphicsSystem::SetupGuestGpu(runtime::FunctionDispatcher* function_dis
             if (current_time - last_frame_time >= interval_ticks) {
               last_frame_time = current_time;
             }
+            // Re-evaluate immediately: we may already be due for the next vblank
+            // after catching up, and must not sleep past it.
+            continue;
           }
-          rex::thread::Sleep(std::chrono::milliseconds(1));
+          // Sleep only until the next vblank deadline instead of a flat 1 ms poll.
+          // A fixed 1 ms poll fires on the first wake at/after the deadline, biasing
+          // the 16.67 ms (60 Hz) interval up toward ~17 ms (~58.8 fps) and adding
+          // per-frame jitter. Sleeping the remaining time lands the vblank close to
+          // its exact deadline; the 1 ms cap keeps the loop responsive to live
+          // changes of the vsync / max_fps cvars.
+          uint64_t remaining_ticks = (last_frame_time + interval_ticks) - current_time;
+          uint64_t remaining_us = remaining_ticks * 1000000ULL / guest_tick_frequency;
+          uint64_t sleep_us = std::min<uint64_t>(remaining_us, 1000);
+          rex::thread::Sleep(std::chrono::microseconds(std::max<uint64_t>(sleep_us, 1)));
         }
         return 0;
       }));
@@ -368,6 +414,14 @@ void GraphicsSystem::MarkVblank() {
   //     something wrong and the CP will block waiting for code that
   //     needs to be run in the interrupt.
   DispatchInterruptCallback(0, 2);
+}
+
+void GraphicsSystem::NotifyGuestOutputPresented() {
+  {
+    std::lock_guard<std::mutex> lock(guest_output_present_mutex_);
+    ++guest_output_present_count_;
+  }
+  guest_output_present_cv_.notify_all();
 }
 
 void GraphicsSystem::ClearCaches() {

@@ -2942,6 +2942,14 @@ void VulkanCommandProcessor::IssueSwap(uint32_t frontbuffer_ptr, uint32_t frontb
         return true;
       });
 
+  // A guest output frame has now been handed to the presenter (and, under forced
+  // FIFO presented from this thread, RefreshGuestOutput blocked until the display
+  // vblank). Signal the vblank worker so it can phase-lock the next guest vblank
+  // to the display's present cadence. No-op unless the present-locked path runs.
+  if (graphics_system_) {
+    graphics_system_->NotifyGuestOutputPresented();
+  }
+
   // End the frame even if did not present for any reason (the image refresher
   // was not called), to prevent leaking per-frame resources.
   EndSubmission(true);

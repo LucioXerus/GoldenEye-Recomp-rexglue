@@ -108,13 +108,14 @@ target_link_libraries(rexui PUBLIC
 )
 
 if(REXGLUE_FIDELITYFX_SOURCE_DIR AND EXISTS "${REXGLUE_FIDELITYFX_SOURCE_DIR}/sdk/include")
-    target_include_directories(rexui PRIVATE
-        "${REXGLUE_FIDELITYFX_SOURCE_DIR}/sdk/include"
-        "${REXGLUE_FIDELITYFX_SOURCE_DIR}/ffx-api/include"
-    )
-    target_compile_definitions(rexui PRIVATE REX_HAS_FIDELITYFX_SDK=1)
+target_include_directories(rexui PRIVATE
+    "${REXGLUE_FIDELITYFX_SOURCE_DIR}/sdk/include"
+    "${REXGLUE_FIDELITYFX_SOURCE_DIR}/ffx-api/include"
+)
+target_compile_definitions(rexui PRIVATE REX_HAS_FIDELITYFX_SDK=1 REX_HAS_FSR1=1)
 endif()
 
+target_compile_definitions(rexui PRIVATE REX_HAS_FSR1=1)
 set(REXUI_HAS_FIDELITYFX_RUNTIME OFF)
 if(TARGET amd_fidelityfx_vk)
     target_link_libraries(rexui PRIVATE amd_fidelityfx_vk)

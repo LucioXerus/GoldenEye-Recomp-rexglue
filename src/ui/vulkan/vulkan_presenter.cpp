@@ -114,7 +114,7 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL FfxVkGetDeviceProcAddrCompat(VkDevice d
 namespace shaders {
 #include "../shaders/vulkan_spirv/guest_output_bilinear_dither_ps.h"
 #include "../shaders/vulkan_spirv/guest_output_bilinear_ps.h"
-#if defined(REX_HAS_FIDELITYFX_SDK)
+#if defined(REX_HAS_FSR1)
 #include "../shaders/vulkan_spirv/guest_output_ffx_cas_resample_dither_ps.h"
 #include "../shaders/vulkan_spirv/guest_output_ffx_cas_resample_ps.h"
 #include "../shaders/vulkan_spirv/guest_output_ffx_cas_sharpen_dither_ps.h"
@@ -2006,10 +2006,10 @@ Presenter::PaintResult VulkanPresenter::PaintAndPresentImpl(bool execute_ui_draw
                                  VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(effect_rect_constants),
                                  &effect_rect_constants);
 
-          uint32_t effect_constants_size = 0;
+uint32_t effect_constants_size = 0;
           union {
             BilinearConstants bilinear;
-#if defined(REX_HAS_FIDELITYFX_SDK)
+#if defined(REX_HAS_FSR1)
             CasSharpenConstants cas_sharpen;
             CasResampleConstants cas_resample;
             FsrEasuConstants fsr_easu;
@@ -2021,16 +2021,16 @@ Presenter::PaintResult VulkanPresenter::PaintAndPresentImpl(bool execute_ui_draw
               effect_constants_size = sizeof(effect_constants.bilinear);
               effect_constants.bilinear.Initialize(guest_output_flow, i);
             } break;
-#if defined(REX_HAS_FIDELITYFX_SDK)
+#if defined(REX_HAS_FSR1)
             case kGuestOutputPaintPipelineLayoutIndexCasSharpen: {
               effect_constants_size = sizeof(effect_constants.cas_sharpen);
               effect_constants.cas_sharpen.Initialize(guest_output_flow, i,
-                                                      guest_output_paint_config);
+                                                     guest_output_paint_config);
             } break;
             case kGuestOutputPaintPipelineLayoutIndexCasResample: {
               effect_constants_size = sizeof(effect_constants.cas_resample);
               effect_constants.cas_resample.Initialize(guest_output_flow, i,
-                                                       guest_output_paint_config);
+                                                     guest_output_paint_config);
             } break;
             case kGuestOutputPaintPipelineLayoutIndexFsrEasu: {
               effect_constants_size = sizeof(effect_constants.fsr_easu);
@@ -2316,7 +2316,7 @@ bool VulkanPresenter::InitializeSurfaceIndependent() {
       case kGuestOutputPaintPipelineLayoutIndexBilinear:
         guest_output_paint_push_constant_range_ffx.size = sizeof(BilinearConstants);
         break;
-#if defined(REX_HAS_FIDELITYFX_SDK)
+#if defined(REX_HAS_FSR1)
       case kGuestOutputPaintPipelineLayoutIndexCasSharpen:
         guest_output_paint_push_constant_range_ffx.size = sizeof(CasSharpenConstants);
         break;
@@ -2371,7 +2371,7 @@ bool VulkanPresenter::InitializeSurfaceIndependent() {
         shader_module_create_info.codeSize = sizeof(shaders::guest_output_bilinear_dither_ps);
         shader_module_create_info.pCode = shaders::guest_output_bilinear_dither_ps;
         break;
-#if defined(REX_HAS_FIDELITYFX_SDK)
+#if defined(REX_HAS_FSR1)
       case GuestOutputPaintEffect::kCasSharpen:
         shader_module_create_info.codeSize = sizeof(shaders::guest_output_ffx_cas_sharpen_ps);
         shader_module_create_info.pCode = shaders::guest_output_ffx_cas_sharpen_ps;

@@ -70,10 +70,6 @@ class GTKWindow : public Window {
   std::unique_ptr<Surface> CreateSurfaceImpl(Surface::TypeFlags allowed_types) override;
   void RequestPaintImpl() override;
 
-  void ApplyNewMouseCapture() override;
-  void ApplyNewMouseRelease() override;
-  void ApplyNewCursorVisibility(CursorVisibility old_cursor_visibility) override;
-
  private:
   void HandleSizeUpdate(WindowDestructionReceiver& destruction_receiver);
   // For updating multiple factors that may influence the window size at once,
@@ -114,10 +110,6 @@ class GTKWindow : public Window {
   uint32_t batched_size_update_depth_ = 0;
   bool batched_size_update_contained_configure_ = false;
   bool batched_size_update_contained_draw_ = false;
-
-  // Cursor management.
-  GdkCursor* blank_cursor_ = nullptr;
-  bool pointer_grabbed_ = false;
 
 #if REX_HAS_WAYLAND
   // Non-owning pointer to the active Wayland surface, kept in sync with

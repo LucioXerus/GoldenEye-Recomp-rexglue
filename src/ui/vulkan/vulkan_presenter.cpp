@@ -1388,7 +1388,6 @@ VkSwapchainKHR VulkanPresenter::PaintContext::CreateSwapchainForVulkanSurface(
     swapchain_create_info.compositeAlpha =
         VkCompositeAlphaFlagBitsKHR(uint32_t(1) << composite_alpha_shift);
   }
-<<<<<<< HEAD
   // Present mode priority. Desktop default (mailbox_first=false): IMMEDIATE first so
   // VRR displays can tear at will for minimum latency. Mobile default (mailbox_first=true,
   // e.g. Android arm64 handhelds with fixed-refresh panels): MAILBOX first — tear-free and
@@ -1414,7 +1413,8 @@ VkSwapchainKHR VulkanPresenter::PaintContext::CreateSwapchainForVulkanSurface(
                        VK_PRESENT_MODE_FIFO_RELAXED_KHR) != present_modes.cend()) {
     // Vsync with latency relief for frames that run long.
     swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-  } else if (mailbox_first && REXCVAR_GET(vulkan_allow_present_mode_immediate) &&
+  } else if (REXCVAR_GET(vulkan_prefer_present_mode_mailbox_first) &&
+             REXCVAR_GET(vulkan_allow_present_mode_immediate) &&
              std::find(present_modes.cbegin(), present_modes.cend(),
                        VK_PRESENT_MODE_IMMEDIATE_KHR) != present_modes.cend()) {
     // Mobile last resort: IMMEDIATE explicitly requested and no preferred mode available.
@@ -2044,7 +2044,7 @@ Presenter::PaintResult VulkanPresenter::PaintAndPresentImpl(bool execute_ui_draw
                                  VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(effect_rect_constants),
                                  &effect_rect_constants);
 
-uint32_t effect_constants_size = 0;
+          uint32_t effect_constants_size = 0;
           union {
             BilinearConstants bilinear;
 #if defined(REX_HAS_FSR1)
@@ -2063,12 +2063,12 @@ uint32_t effect_constants_size = 0;
             case kGuestOutputPaintPipelineLayoutIndexCasSharpen: {
               effect_constants_size = sizeof(effect_constants.cas_sharpen);
               effect_constants.cas_sharpen.Initialize(guest_output_flow, i,
-                                                     guest_output_paint_config);
+                                                      guest_output_paint_config);
             } break;
             case kGuestOutputPaintPipelineLayoutIndexCasResample: {
               effect_constants_size = sizeof(effect_constants.cas_resample);
               effect_constants.cas_resample.Initialize(guest_output_flow, i,
-                                                     guest_output_paint_config);
+                                                       guest_output_paint_config);
             } break;
             case kGuestOutputPaintPipelineLayoutIndexFsrEasu: {
               effect_constants_size = sizeof(effect_constants.fsr_easu);

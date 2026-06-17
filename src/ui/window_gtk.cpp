@@ -726,6 +726,29 @@ void GTKWindow::ApplyNewCursorVisibility(CursorVisibility old_cursor_visibility)
   }
 }
 
+void GTKWindow::ApplyWarpMouseToClient(int32_t client_x, int32_t client_y) {
+  if (!window_ || !drawing_area_) {
+    return;
+  }
+  GdkWindow* gdk_window = gtk_widget_get_window(drawing_area_);
+  if (!gdk_window) {
+    return;
+  }
+  gint origin_x = 0, origin_y = 0;
+  gdk_window_get_origin(gdk_window, &origin_x, &origin_y);
+  GdkDisplay* gdk_display = gtk_widget_get_display(window_);
+  GdkSeat* seat = gdk_display_get_default_seat(gdk_display);
+  if (!seat) {
+    return;
+  }
+  GdkDevice* pointer = gdk_seat_get_pointer(seat);
+  if (!pointer) {
+    return;
+  }
+  gdk_device_warp(pointer, gdk_display_get_default_screen(gdk_display),
+                  origin_x + client_x, origin_y + client_y);
+}
+
 #if REX_HAS_WAYLAND
 void GTKWindow::EnsureWaylandGlobals(struct wl_display* display) {
   if (wayland_globals_bound_) {

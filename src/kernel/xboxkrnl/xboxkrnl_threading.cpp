@@ -1089,18 +1089,25 @@ uint32_t xeKeKfAcquireSpinLock(PPCContext* ctx, X_KSPINLOCK* lock, bool change_i
   assert_true(lock->prcb_of_owner != swapped_owner);  // deadlock detection
   uint32_t spins = 0;
   while (!rex::thread::atomic_cas(0u, swapped_owner, &lock->prcb_of_owner.value)) {
-    if (spins < kSpinBackoffYieldThreshold) {
-      const uint32_t burst = 1u << std::min(spins, kSpinBackoffMaxShift);
-      for (uint32_t i = 0; i < burst; ++i) {
-        cpu_relax();
+    // Test-and-test-and-set: after a failed CAS, do NOT re-attempt the exclusive
+    // CAS until a cheap relaxed read shows the lock looks free again. A bare TAS
+    // loop (cmpxchg every iteration) acquires the cache line exclusively even on
+    // failure, so under contention the line bounces between waiters O(N^2). The
+    // inner spin reuses the existing exponential cpu_relax()/MaybeYield backoff.
+    do {
+      if (spins < kSpinBackoffYieldThreshold) {
+        const uint32_t burst = 1u << std::min(spins, kSpinBackoffMaxShift);
+        for (uint32_t i = 0; i < burst; ++i) {
+          cpu_relax();
+        }
+        ++spins;
+      } else {
+        // Spin budget exhausted: the holder is probably not running. Yield the
+        // core to it instead of burning CPU, then resume cheap spinning.
+        rex::thread::MaybeYield();
+        spins = 0;
       }
-      ++spins;
-    } else {
-      // Spin budget exhausted: the holder is probably not running. Yield the
-      // core to it instead of burning CPU, then resume cheap spinning.
-      rex::thread::MaybeYield();
-      spins = 0;
-    }
+    } while (__atomic_load_n(&lock->prcb_of_owner.value, __ATOMIC_RELAXED) != 0u);
   }
   return old_irql;
 }

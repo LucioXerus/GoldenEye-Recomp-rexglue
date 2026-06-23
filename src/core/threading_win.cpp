@@ -85,8 +85,39 @@ void set_current_thread_name(const std::string_view name) {
 }
 
 void MaybeYield() {
+  // Adaptive spin-wait backoff -- mirrors the POSIX implementation (see
+  // threading_posix.cpp for the full rationale). A bare SwitchToThread() per
+  // iteration is the Win32 analogue of the sched_yield() storm that dominated
+  // ~70% of CPU; escalate as a wait lengthens so short waits stay low-latency
+  // in userspace while long idle-waits release the core:
+  //   tier 0  (< 32 calls)  : PAUSE          -- sub-microsecond, no syscall
+  //   tier 1  (< 128 calls) : SwitchToThread -- hand off to a ready sibling
+  //   tier 2  (>= 128 calls): Sleep(1)       -- block briefly, free the core
+  //
+  // A TSC gap larger than ~1 ms means the caller did real work since its last
+  // yield, so this is a fresh wait episode -- reset to the cheap tier. The TSC
+  // episode timer is x86-only; on the experimental win-arm64 target we keep the
+  // original SwitchToThread() so there is no dependency on an ARM cycle counter.
+#if defined(__x86_64__) || defined(__i386__)
+  thread_local uint32_t spin = 0;
+  thread_local uint64_t last_tsc = 0;
+  const uint64_t now = __builtin_ia32_rdtsc();
+  if (now - last_tsc > 3'000'000ull) {
+    spin = 0;
+  }
+  if (spin < 32u) {
+    rex::thread::SpinLoopHint();
+  } else if (spin < 128u) {
+    SwitchToThread();
+  } else {
+    ::Sleep(1);  // Win32 minimum; frees the core on a confirmed long wait.
+  }
+  ++spin;
+  last_tsc = __builtin_ia32_rdtsc();
+#else
   SwitchToThread();
   MemoryBarrier();
+#endif
 }
 
 void SyncMemory() {

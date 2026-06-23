@@ -29,6 +29,14 @@
 // TODO(benvanik): move xbox.h out
 #include <rex/system/xtypes.h>
 
+#if REX_PLATFORM_GNU_LINUX
+#include <sys/mman.h>
+
+#ifndef MADV_HUGEPAGE
+#define MADV_HUGEPAGE 14
+#endif
+#endif
+
 REXCVAR_DEFINE_BOOL(protect_zero, true, "Memory", "Protect the zero page from reads and writes")
     .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
 
@@ -159,6 +167,13 @@ bool Memory::Initialize() {
   }
   virtual_membase_ = mapping_base_;
   physical_membase_ = mapping_base_ + 0x100000000ull;
+
+  // Ask the kernel to back the entire guest address space (~18 GB virtual)
+  // with transparent huge pages (2 MB).  On a 4 K page table this would
+  // require ~4.5 million TLB entries for the working set; with THP it drops
+  // to ~9 000, eliminating a significant fraction of the LLC cache misses
+  // that perf attributes to TLB/page-table walk pressure.
+  madvise(virtual_membase_, 0x120000000, MADV_HUGEPAGE);
 
   // Prepare virtual heaps.
   heaps_.v00000000.Initialize(this, virtual_membase_, memory::HeapType::kGuestVirtual, 0x00000000,

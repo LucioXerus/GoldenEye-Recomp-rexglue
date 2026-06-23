@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include <simde/x86/sse.h>
+#include <simde/x86/f16c.h>
 
 #include <rex/logging.h>
 
@@ -1467,22 +1468,21 @@ bool build_vupkd3d128(BuilderContext& ctx) {
     {
       auto vSrc = ctx.v(ctx.insn.operands[1]);
       auto vDst = ctx.v(ctx.insn.operands[0]);
-      // Unpack 2 float16s from u16[0,1] to elements 0,1 (stored at u32[3,2])
-      // Element 0 (at u32[3]) from u16[1] (high), element 1 (at u32[2]) from u16[0] (low)
-      for (size_t i = 0; i < 2; i++) {
-        size_t srcIdx = 1 - i;  // Read from u16[1], u16[0]
-        size_t dstIdx = 3 - i;  // Write to u32[3], u32[2]
-        ctx.println("\t{}.u32 = {}.u16[{}];", ctx.temp(), vSrc, srcIdx);
-        // Extract sign, exponent, mantissa
-        ctx.println(
-            "\t{}.u32[0] = (({}.u32 & 0x8000) << 16) | ((({}.u32 & 0x7C00) + 0x1C000) << 13) | "
-            "(({}.u32 & 0x03FF) << 13);",
-            ctx.v_temp(), ctx.temp(), ctx.temp(), ctx.temp());
-        // Handle zero/denorm case
-        ctx.println("\tif (({}.u32 & 0x7C00) == 0) {}.u32[0] = ({}.u32 & 0x8000) << 16;",
-                    ctx.temp(), ctx.v_temp(), ctx.temp());
-        ctx.println("\t{}.u32[{}] = {}.u32[0];", vDst, dstIdx, ctx.v_temp());
-      }
+      // Unpack 2 float16s (u16[0], u16[1]) to f32[2], f32[3]; f32[0]/f32[1] are
+      // then overwritten with the constants (1.0, 0.0) below. Hardware F16C
+      // (simde_mm_cvtph_ps) replaces the manual bit-twiddle conversion.
+      //
+      // IMPORTANT lane mapping: the original scalar code wrote u16[0]->u32[2] and
+      // u16[1]->u32[3], so the converted values must land in f32[2]/f32[3].
+      // simde_mm_cvtph_ps maps input u16 lane k -> output f32 lane k, so u16[0]
+      // and u16[1] are inserted at lanes 2 and 3 (NOT 0/1 -- a naive port that
+      // inserts at 0/1 would put the data in f32[0]/f32[1] where the constant
+      // writes below immediately clobber it, silently dropping the vertex data).
+      ctx.println(
+          "\t{{ simde__m128i _f16_vec = simde_mm_insert_epi16("
+          "simde_mm_insert_epi16(simde_mm_setzero_si128(), {0}.u16[0], 2), {0}.u16[1], 3);"
+          " simde_mm_store_ps({1}.f32, simde_mm_cvtph_ps(_f16_vec)); }}",
+          vSrc, vDst);
       ctx.println("\t{}.f32[1] = 0.0f;", vDst);
       ctx.println("\t{}.f32[0] = 1.0f;", vDst);
       break;
@@ -1506,22 +1506,18 @@ bool build_vupkd3d128(BuilderContext& ctx) {
     {
       auto vSrc = ctx.v(ctx.insn.operands[1]);
       auto vDst = ctx.v(ctx.insn.operands[0]);
-      // Unpack 4 float16s from Guest elements 2-3 (host u16[0-3]) to elements 0-3
-      // Guest element order is reversed in host arrays
-      for (size_t i = 0; i < 4; i++) {
-        size_t srcIdx = 3 - i;  // Read from u16 indices 3, 2, 1, 0 (guest shorts 0, 1, 2, 3)
-        size_t dstIdx = 3 - i;  // Write to u32 indices 3, 2, 1, 0 (Guest elements 0, 1, 2, 3)
-        ctx.println("\t{}.u32 = {}.u16[{}];", ctx.temp(), vSrc, srcIdx);
-        // Extract sign, exponent, mantissa and convert to float32
-        ctx.println(
-            "\t{}.u32[0] = (({}.u32 & 0x8000) << 16) | ((({}.u32 & 0x7C00) + 0x1C000) << 13) | "
-            "(({}.u32 & 0x03FF) << 13);",
-            ctx.v_temp(), ctx.temp(), ctx.temp(), ctx.temp());
-        // Handle zero/denorm case
-        ctx.println("\tif (({}.u32 & 0x7C00) == 0) {}.u32[0] = ({}.u32 & 0x8000) << 16;",
-                    ctx.temp(), ctx.v_temp(), ctx.temp());
-        ctx.println("\t{}.u32[{}] = {}.u32[0];", vDst, dstIdx, ctx.v_temp());
-      }
+      // Unpack 4 float16s (host u16[0-3]) to f32[0-3]. The original scalar code
+      // used an identity lane mapping (u16[k] -> f32[k]), so hardware F16C
+      // (simde_mm_cvtph_ps, which maps input lane k -> output f32 lane k) is a
+      // drop-in replacement: insert u16[0..3] at lanes 0..3 and convert in one op
+      // instead of 4 manual bit-twiddle sequences per element.
+      ctx.println(
+          "\t{{ simde__m128i _f16_vec = simde_mm_insert_epi16("
+          "simde_mm_insert_epi16(simde_mm_insert_epi16("
+          "simde_mm_insert_epi16(simde_mm_setzero_si128(), {0}.u16[0], 0),"
+          " {0}.u16[1], 1), {0}.u16[2], 2), {0}.u16[3], 3);"
+          " simde_mm_store_ps({1}.f32, simde_mm_cvtph_ps(_f16_vec)); }}",
+          vSrc, vDst);
       break;
     }
 

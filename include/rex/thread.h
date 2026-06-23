@@ -105,6 +105,18 @@ void set_current_thread_id(uint32_t id);
 // Sets the current thread name.
 void set_current_thread_name(const std::string_view name);
 
+// CPU spin-loop hint for short busy-waits. Emits PAUSE on x86 (de-pipelines the
+// spin, frees SMT resources, cuts power) or YIELD on ARM. Does NOT enter the
+// kernel and is NOT a memory barrier — pair with an atomic/volatile re-read of
+// the spin condition. Vastly cheaper than a sched_yield() syscall per iteration.
+inline void SpinLoopHint() {
+#if defined(__x86_64__) || defined(__i386__)
+  __builtin_ia32_pause();
+#elif defined(__aarch64__) || defined(__arm__)
+  __asm__ __volatile__("yield" ::: "memory");
+#endif
+}
+
 // Yields the current thread to the scheduler. Maybe.
 void MaybeYield();
 

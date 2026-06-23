@@ -98,6 +98,9 @@ if(NOT WIN32)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64")
         # Large code model on x86_64 for linking with very large recompiled executables (35MB+)
         add_compile_options(-mcmodel=large)
+        # -march=native enables AVX-512 on capable CPUs (e.g. Rocket Lake+),
+        # doubling SIMD throughput for the recompiled PPC guest code.
+        add_compile_options(-march=native)
     else()
         # Small code model for other architectures (ARM64, etc.)
         add_compile_options(-mcmodel=small)

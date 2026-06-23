@@ -305,6 +305,11 @@ void CommandProcessor::CallInThread(std::function<void()> fn) {
     fn();
   } else {
     pending_fns_.push(std::move(fn));
+    // Wake the worker thread if it is blocked on the write-pointer event
+    // waiting for new GPU commands. Without this, a pending function queued
+    // from another thread (Pause, swap-effect change, etc.) would not be
+    // noticed until the event wait's 5 ms safety-net timeout elapses.
+    write_ptr_index_event_->Set();
   }
 }
 
@@ -357,20 +362,23 @@ void CommandProcessor::WorkerThreadMain() {
     if (write_ptr_index == 0xBAADF00D || read_ptr_index_ == write_ptr_index) {
       SCOPE_profile_cpu_i("gpu", "rex::graphics::CommandProcessor::Stall");
       // We've run out of commands to execute.
-      // We spin here waiting for new ones, as the overhead of waiting on our
-      // event is too high.
       PrepareForWait();
-      uint32_t loop_count = 0;
       do {
-        // If we spin around too much, revert to a "low-power" state.
-        if (loop_count > 500) {
-          const int wait_time_ms = 5;
-          rex::thread::Wait(write_ptr_index_event_.get(), true,
-                            std::chrono::milliseconds(wait_time_ms));
-        }
-
-        rex::thread::MaybeYield();
-        loop_count++;
+        // Block on the write-pointer event until the guest submits new commands
+        // or a CallInThread queues a pending function. The event is auto-reset
+        // and latches signals (UpdateWritePointer and CallInThread both call
+        // Set()), so a signal that races our write_ptr_index_ check above is
+        // not lost -- the Wait returns immediately from the latched state.
+        //
+        // This replaces a 500-iteration sched_yield() spin loop that spent
+        // ~7% of total CPU in __sched_yield kernel transitions (500 syscalls
+        // per idle period, ~3 idle periods per frame at 60 FPS). A futex-based
+        // event wait lets the guest submission thread run with the full core
+        // instead of competing for scheduler timeslices, and wakes in ~5us
+        // when new commands arrive. The 5 ms timeout is a lost-wakeup safety
+        // net only.
+        rex::thread::Wait(write_ptr_index_event_.get(), true,
+                          std::chrono::milliseconds(5));
         write_ptr_index = write_ptr_index_.load();
       } while (worker_running_ && pending_fns_.empty() &&
                (write_ptr_index == 0xBAADF00D || read_ptr_index_ == write_ptr_index));

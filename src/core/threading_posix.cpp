@@ -154,8 +154,70 @@ uint32_t current_thread_system_id() {
 }
 
 void MaybeYield() {
-  sched_yield();
-  __sync_synchronize();
+  // Adaptive spin-wait backoff.
+  //
+  // Called from very tight guest spin loops (NtYieldExecution, which the title
+  // polls directly, and xeKeKfAcquireSpinLock, hit on every guest kernel
+  // spinlock retry). A bare sched_yield() per iteration costs a full syscall
+  // plus a Spectre-BHI (clear_bhb_loop) and ITS (its_return_thunk) mitigation
+  // flush on modern x86 -- profiling showed this dominating ~70% of total CPU,
+  // and the threads idle-wait (frame-sync / vblank) roughly half the time.
+  //
+  // Escalate as a wait lengthens so short waits stay low-latency in userspace
+  // while long idle-waits release the core (CPU + power efficiency, and lets
+  // the awaited thread run on an oversubscribed core):
+  //   tier 0  (< 32 calls)  : PAUSE/YIELD   -- sub-microsecond, no syscall
+  //   tier 1  (< 128 calls) : sched_yield() -- bounded, hand off to a sibling
+  //   tier 2  (>= 128 calls): nanosleep     -- block briefly, free the core
+  //
+  // A counter gap larger than ~1 ms means the caller did real work since its
+  // last yield, so this is a fresh wait episode -- reset to the cheap tier so a
+  // short wait never inherits a previous long wait's escalation. The episode
+  // timer reads a cheap architectural counter (TSC on x86, the virtual timer on
+  // ARM) rather than a clock syscall so it stays in userspace on the hot path.
+  thread_local uint32_t spin = 0;
+  thread_local uint64_t last_ts = 0;
+
+#if defined(__x86_64__) || defined(__i386__)
+  const uint64_t now = __builtin_ia32_rdtsc();
+  const uint64_t reset_threshold = 3'000'000ull;  // ~1 ms at multi-GHz TSC
+#elif defined(__aarch64__)
+  static const uint64_t freq = [] {
+    uint64_t f;
+    __asm__ __volatile__("mrs %0, cntfrq_el0" : "=r"(f));
+    return f;
+  }();
+  uint64_t now;
+  __asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(now));
+  const uint64_t reset_threshold = freq / 1000u;  // ~1 ms in counter ticks
+#else
+  timespec tp;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  const uint64_t now = static_cast<uint64_t>(tp.tv_sec) * 1'000'000'000ull + tp.tv_nsec;
+  const uint64_t reset_threshold = 1'000'000ull;  // 1 ms in ns
+#endif
+
+  if (now - last_ts > reset_threshold) {
+    spin = 0;
+  }
+  if (spin < 32u) {
+    rex::thread::SpinLoopHint();
+  } else if (spin < 128u) {
+    sched_yield();
+  } else {
+    const timespec ts{0, 250'000};  // 250 us
+    nanosleep(&ts, nullptr);
+  }
+  ++spin;
+
+#if defined(__x86_64__) || defined(__i386__)
+  last_ts = __builtin_ia32_rdtsc();
+#elif defined(__aarch64__)
+  __asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(last_ts));
+#else
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  last_ts = static_cast<uint64_t>(tp.tv_sec) * 1'000'000'000ull + tp.tv_nsec;
+#endif
 }
 
 void SyncMemory() {
@@ -356,41 +418,17 @@ class PosixConditionBase {
 
       size_t first_signaled = std::numeric_limits<size_t>::max();
       bool condition_met = false;
-      bool all_locked = true;
 
-      std::vector<std::unique_lock<std::mutex>> locks;
-      locks.reserve(handles.size());
-
-      for (size_t i = 0; i < handles.size(); ++i) {
-#if REX_PLATFORM_LINUX
-        auto native_mutex = static_cast<pthread_mutex_t*>(handles[i]->mutex_.native_handle());
-        int result = pthread_mutex_trylock(native_mutex);
-        if (result == 0 || result == EOWNERDEAD) {
-          if (result == EOWNERDEAD) {
-#if !REX_PLATFORM_ANDROID
-            pthread_mutex_consistent(native_mutex);  // never hit on bionic
-#endif
-          }
-          locks.emplace_back(handles[i]->mutex_, std::adopt_lock);
-        } else {
-          all_locked = false;
-          break;
-        }
-#else
-        locks.emplace_back(handles[i]->mutex_, std::try_to_lock);
-        if (!locks.back().owns_lock()) {
-          all_locked = false;
-          break;
-        }
-#endif
-      }
-
-      if (!all_locked) {
-        locks.clear();
-        std::this_thread::yield();
-        continue;
-      }
-
+      // Lock-free peek: check each handle's signaled flag WITHOUT acquiring its
+      // per-handle mutex. Event/Semaphore/Timer store their flag in std::atomic
+      // so this is a race-free acquire load; Mutant/Thread (rare in multi-wait)
+      // read a plain flag whose stale value at worst costs one extra generation
+      // re-probe and is benign on x86. This replaces the previous
+      // try-lock-ALL-handles snapshot that ran on every probe and caused heavy
+      // mutex contention with concurrent Signal()/Release() -- the audio worker
+      // alone burned ~21% of total CPU in pthread_mutex_trylock /
+      // __pthread_mutex_unlock_full slow paths because the SDL audio thread was
+      // constantly signaling the same semaphores.
       if (wait_all) {
         bool all_signaled = true;
         for (size_t i = 0; i < handles.size(); ++i) {
@@ -415,16 +453,44 @@ class PosixConditionBase {
 
       if (condition_met) {
         if (wait_all) {
+          // Lock every handle to verify + consume atomically. Only reached when
+          // all handles looked signaled in the lock-free peek (rare relative to
+          // the probe rate). A blocking lock is fine here: each handle is
+          // signaled and will be released by its owner quickly.
+          std::vector<std::unique_lock<std::mutex>> locks;
+          locks.reserve(handles.size());
           for (size_t i = 0; i < handles.size(); ++i) {
-            handles[i]->post_execution();
+            locks.emplace_back(handles[i]->mutex_);
           }
+          bool still_all_signaled = true;
+          for (size_t i = 0; i < handles.size(); ++i) {
+            if (!handles[i]->signaled()) {
+              still_all_signaled = false;
+              break;
+            }
+          }
+          if (still_all_signaled) {
+            for (size_t i = 0; i < handles.size(); ++i) {
+              handles[i]->post_execution();
+            }
+            return std::make_pair(WaitResult::kSuccess, first_signaled);
+          }
+          // A handle was consumed between the peek and the lock. Re-probe.
+          continue;
         } else {
-          handles[first_signaled]->post_execution();
+          // Lock ONLY the single signaled handle to verify + consume it. This is
+          // the key win: one mutex acquisition instead of try-locking every
+          // handle on every probe.
+          std::unique_lock<std::mutex> lock(handles[first_signaled]->mutex_);
+          if (handles[first_signaled]->signaled()) {
+            handles[first_signaled]->post_execution();
+            return std::make_pair(WaitResult::kSuccess, first_signaled);
+          }
+          // Spurious: the signal was consumed between the peek and the lock
+          // (e.g. another waiter). Re-probe.
+          continue;
         }
-        return std::make_pair(WaitResult::kSuccess, first_signaled);
       }
-
-      locks.clear();
 
       auto now = std::chrono::steady_clock::now();
       if (now >= end_time) {
@@ -467,7 +533,7 @@ class PosixCondition<Event> : public PosixConditionBase {
   bool Signal() override {
     {
       auto lock = std::unique_lock<std::mutex>(mutex_);
-      signal_ = true;
+      signal_.store(true, std::memory_order_release);
       cond_.notify_all();
     }
     NotifyGlobalWaiters();
@@ -476,17 +542,20 @@ class PosixCondition<Event> : public PosixConditionBase {
 
   void Reset() {
     auto lock = std::unique_lock<std::mutex>(mutex_);
-    signal_ = false;
+    signal_.store(false, std::memory_order_release);
   }
 
  private:
-  inline bool signaled() const override { return signal_; }
+  inline bool signaled() const override {
+    return signal_.load(std::memory_order_acquire);
+  }
   inline void post_execution() override {
     if (!manual_reset_) {
-      signal_ = false;
+      signal_.store(false, std::memory_order_release);
     }
   }
-  bool signal_;
+  // Atomic so WaitMultiple() can peek it lock-free (without taking mutex_).
+  mutable std::atomic<bool> signal_;
   const bool manual_reset_;
 };
 
@@ -501,13 +570,13 @@ class PosixCondition<Semaphore> : public PosixConditionBase {
   bool Release(uint32_t release_count, int* out_previous_count) {
     {
       auto lock = std::unique_lock<std::mutex>(mutex_);
-      if (release_count > maximum_count_ - count_) {
+      if (release_count > maximum_count_ - count_.load(std::memory_order_relaxed)) {
         return false;
       }
+      uint32_t prev = count_.fetch_add(release_count, std::memory_order_acq_rel);
       if (out_previous_count) {
-        *out_previous_count = count_;
+        *out_previous_count = static_cast<int>(prev);
       }
-      count_ += release_count;
       cond_.notify_all();
     }
     NotifyGlobalWaiters();
@@ -515,18 +584,21 @@ class PosixCondition<Semaphore> : public PosixConditionBase {
   }
 
  private:
-  inline bool signaled() const override { return count_ > 0; }
+  inline bool signaled() const override {
+    return count_.load(std::memory_order_acquire) > 0;
+  }
   inline void post_execution() override {
-    count_--;
+    count_.fetch_sub(1, std::memory_order_acq_rel);
     cond_.notify_all();
     // A multi-object/alertable waiter may have consumed one count while another
     // is still pending and count_ remains > 0; wake the global waiters so they
     // re-check rather than sleep until the next Release.
-    if (count_ > 0) {
+    if (count_.load(std::memory_order_relaxed) > 0) {
       NotifyGlobalWaiters();
     }
   }
-  uint32_t count_;
+  // Atomic so WaitMultiple() can peek it lock-free (without taking mutex_).
+  mutable std::atomic<uint32_t> count_;
   const uint32_t maximum_count_;
 };
 
@@ -587,7 +659,7 @@ class PosixCondition<Timer> : public PosixConditionBase {
   bool Signal() override {
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      signal_ = true;
+      signal_.store(true, std::memory_order_release);
       cond_.notify_all();
     }
     NotifyGlobalWaiters();
@@ -600,7 +672,7 @@ class PosixCondition<Timer> : public PosixConditionBase {
     std::lock_guard<std::mutex> lock(mutex_);
 
     callback_ = std::move(opt_callback);
-    signal_ = false;
+    signal_.store(false, std::memory_order_release);
     wait_item_ = QueueTimerOnce(&CompletionRoutine, this, due_time);
   }
 
@@ -611,7 +683,7 @@ class PosixCondition<Timer> : public PosixConditionBase {
     std::lock_guard<std::mutex> lock(mutex_);
 
     callback_ = std::move(opt_callback);
-    signal_ = false;
+    signal_.store(false, std::memory_order_release);
     wait_item_ = QueueTimerRecurring(&CompletionRoutine, this, due_time, period);
   }
 
@@ -643,15 +715,18 @@ class PosixCondition<Timer> : public PosixConditionBase {
   }
 
  private:
-  inline bool signaled() const override { return signal_; }
+  inline bool signaled() const override {
+    return signal_.load(std::memory_order_acquire);
+  }
   inline void post_execution() override {
     if (!manual_reset_) {
-      signal_ = false;
+      signal_.store(false, std::memory_order_release);
     }
   }
   std::weak_ptr<TimerQueueWaitItem> wait_item_;
   std::function<void()> callback_;
-  bool signal_;  // Protected by mutex_
+  // Written under mutex_, but atomic so WaitMultiple() can peek it lock-free.
+  mutable std::atomic<bool> signal_;
   const bool manual_reset_;
 };
 

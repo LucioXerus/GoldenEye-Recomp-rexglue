@@ -175,6 +175,15 @@ set(SNAPPY_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(SNAPPY_INSTALL ON CACHE BOOL "" FORCE)
 add_subdirectory(snappy)
 target_compile_options(snappy PRIVATE -w)
+# snappy.cc's MemCopy64() compiles a 256-bit path under
+# `defined(__x86_64__) && defined(__AVX__)` (which -march=native enables), but it
+# only #includes <immintrin.h> under its own SNAPPY_HAVE_* macros -- so __m256i
+# is used with no header and the build fails. Force-include the header on x86 so
+# the AVX path always has its types. (Patched here, in our repo, instead of the
+# google/snappy submodule, so it survives a fresh clone.)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-6]86")
+    target_compile_options(snappy PRIVATE -include immintrin.h)
+endif()
 
 #=============================================================================
 # utfcpp - UTF-8 string library (header-only)
